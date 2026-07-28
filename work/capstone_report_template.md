@@ -1,62 +1,179 @@
-# Capstone Report — <your lane>
+# Capstone Report
 
-- **Author:**
-- **Lane:**
-- **Repo:**
-- **Date:**
+**Author:** Abdul Moeed
 
-> Copy this file to `work/capstone_report.md` and fill it in as you build. The eight
-> sections mirror the Pass / Needs-Work rubric axes, so nothing here is optional.
+**Lane:** Refresh / Content Opportunity Scoring
 
-## 1. Problem framing
+**Repo:** https://github.com/abdulmoeed1090/Fly-rank-starter-assignment
 
-What decision does this support? Name the unit of analysis (page, client, day…), the output
-(score, rank, cluster, report), the action a human takes from it, and the cost of a wrong
-call. Why does data/ML help here at all?
-
-## 2. Data safety
-
-Which data you used and which columns you deliberately excluded (and why). Leakage risks you
-considered — especially label-derived fields (`trend_direction`, `trend_pct`) and pseudonymous
-IDs (grouping only, never features). Confirm nothing client-identifying appears anywhere in
-`work/`.
-
-## 3. Baseline
-
-The transparent rule or score you built first. Why it's a fair comparison, and its numbers on
-the same data and metric as your model.
-
-## 4. Model / analysis
-
-Your method and why it fits the lane. The exact feature list (and what you left out on
-purpose). The target or proxy definition, in one sentence.
-
-## 5. Evaluation
-
-Your split (grouped by client? time-aware?) and why. Metrics, model vs baseline **on the same
-split**. What the errors look like — a short error analysis beats a big metric table.
-
-## 6. Interpretation
-
-What the model/clusters actually found. Feature importances or cluster profiles in plain
-words. Surprises and negative results — a well-understood "no effect" is a valid result.
-
-## 7. Recommendation
-
-The ranked actions or decisions your output supports, and how a FlyRank editor would use them
-tomorrow. State your confidence and the limits explicitly.
-
-## 8. Reproducibility
-
-The exact commands to re-run everything from a fresh clone, your random seeds, and your
-environment (`pip freeze` highlights or `requirements.txt` deltas).
+**Date:** July 2026
 
 ---
 
-> **Claims checklist before submitting:** observed / measured / directional / decision-support
-> **Metrics vs. base rate:** report your task's base rate (majority-class %) next to any
-> precision@K or accuracy — a high score can just be a high base rate. AUC / lift over
-> baseline are the honest discrimination numbers.
-> language everywhere · no causal claims without an experiment or causal design · no
-> "predicted Google's algorithm" · no client-identifying details · numbers in this report
-> match a fresh re-run.
+# 1. Problem Framing
+
+## Decision
+
+This project supports the decision of identifying which content pages should be reviewed and refreshed first.
+
+## Unit of Analysis
+
+One row represents the daily search performance of one content page.
+
+## Output
+
+A ranked list (or score) indicating the priority of refreshing each content page.
+
+## Human Action
+
+Content editors can review the highest-ranked pages first instead of manually inspecting every page.
+
+## Cost of a Wrong Recommendation
+
+If a page that needs attention is ranked too low, valuable traffic opportunities may be missed.
+
+If a healthy page is ranked too high, editorial time may be wasted refreshing content that does not need improvement.
+
+## Why ML?
+
+Search performance depends on many interacting factors such as impressions, clicks, position, engagement, and traffic sources.
+
+These relationships are difficult to capture using simple rules, making machine learning a suitable decision-support approach.
+
+---
+
+# 2. Data Safety
+
+## Dataset
+
+FlyRank Search Intelligence Warehouse
+
+Current table:
+
+fact_content_daily_performance
+
+## Planned Features
+
+- GSC impressions
+- GSC clicks
+- Average position
+- Pageviews
+- Sessions
+- Users
+- Scroll events
+- Organic sessions
+- AI referral sessions
+
+## Deliberately Excluded
+
+- client_hash_id as a predictive feature (used only for grouping or validation)
+- content_hash_id as a predictive feature
+- Any client-identifying information
+- Future label-derived columns
+- trend_direction (future work)
+- trend_pct (future work)
+
+## Leakage Considerations
+
+No future information is used during feature construction.
+
+Label-derived variables will be excluded once labels are created.
+
+No client-identifying information appears anywhere in the repository.
+
+---
+
+# 3. Baseline
+
+Not yet completed.
+
+A simple baseline model or rule-based scoring system will be developed before training machine learning models.
+
+---
+
+# 4. Model / Analysis
+
+Not yet completed.
+
+Current work has focused on:
+
+- Research Question
+- ML Task Framing
+- Data Contract
+
+The target label will be defined in later assignments using future observed outcomes.
+
+---
+
+# 5. Evaluation
+
+Not yet completed.
+
+Future work will include:
+
+- Train/Test split
+- Time-aware validation
+- Comparison against baseline
+- Error analysis
+
+---
+
+# 6. Interpretation
+
+Not yet completed.
+
+Future work will analyse:
+
+- Feature importance
+- Signal relationships
+- Model behaviour
+- Negative results
+
+---
+
+# 7. Recommendation
+
+Not yet completed.
+
+The final output will provide ranked content refresh recommendations together with explanation codes describing why each page received its score.
+
+---
+
+# 8. Reproducibility
+
+Repository:
+
+https://github.com/abdulmoeed1090/Fly-rank-starter-assignment
+
+Current notebooks completed:
+
+- w01_research_question.ipynb
+- w02_ml_task_framing.ipynb
+- w03_data_contract.ipynb
+
+Future notebooks will include:
+
+- Feature Leakage Check
+- Signal Audit
+- Baseline Model
+- Machine Learning Model
+- Validation
+- Action Playbook
+
+Random seeds and environment configuration will be documented once modelling begins.
+
+---
+
+# Claims Checklist
+
+✔ Observed / measured language
+
+✔ Decision-support framing
+
+✔ No causal claims
+
+✔ No client-identifying information
+
+✔ Repository remains reproducible
+
+Metrics and model comparisons will be added after baseline and model development.
