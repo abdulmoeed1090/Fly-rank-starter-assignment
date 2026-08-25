@@ -1,179 +1,145 @@
-# Capstone Report
+# FlyRank Capstone Report
 
-**Author:** Abdul Moeed
+## Title
 
-**Lane:** Refresh / Content Opportunity Scoring
+# Search Performance Decline: A Decision-Support Study
 
-**Repo:** https://github.com/abdulmoeed1090/Fly-rank-starter-assignment
+## Abstract
 
-**Date:** July 2026
+This study asks whether current search-performance signals can help prioritize pages for possible future search-performance decline. A transparent Week-4 scoring rule was compared with a Random Forest classifier using current-day Google Search Console signals. The future outcome was defined as an observed next-day impression decline of at least 20% for pages with at least five current impressions. The Random Forest achieved higher ROC-AUC and Average Precision than the baseline, but the baseline achieved better Precision@20. Therefore, the transparent baseline remains the preferred decision-support method for a small human review queue, while the model results are treated as directional evidence rather than causal evidence.
 
----
+## Introduction / Problem Statement
 
-# 1. Problem Framing
+Content teams cannot manually investigate every page every day.
 
-## Decision
+This project supports the decision:
 
-This project supports the decision of identifying which content pages should be reviewed and refreshed first.
+> Which pages should a content team investigate first?
 
-## Unit of Analysis
+The system is designed as decision support rather than an automatic content-refresh decision.
 
-One row represents the daily search performance of one content page.
+## Data
 
-## Output
+The project uses the FlyRank ML Internship warehouse dataset.
 
-A ranked list (or score) indicating the priority of refreshing each content page.
-
-## Human Action
-
-Content editors can review the highest-ranked pages first instead of manually inspecting every page.
-
-## Cost of a Wrong Recommendation
-
-If a page that needs attention is ranked too low, valuable traffic opportunities may be missed.
-
-If a healthy page is ranked too high, editorial time may be wasted refreshing content that does not need improvement.
-
-## Why ML?
-
-Search performance depends on many interacting factors such as impressions, clicks, position, engagement, and traffic sources.
-
-These relationships are difficult to capture using simple rules, making machine learning a suitable decision-support approach.
-
----
-
-# 2. Data Safety
-
-## Dataset
-
-FlyRank Search Intelligence Warehouse
-
-Current table:
-
-fact_content_daily_performance
-
-## Planned Features
+The selected current-day signals are:
 
 - GSC impressions
 - GSC clicks
-- Average position
-- Pageviews
-- Sessions
-- Users
-- Scroll events
-- Organic sessions
-- AI referral sessions
+- GSC average position
+- CTR derived from clicks and impressions
 
-## Deliberately Excluded
+Identifiers, metadata fields, future values, and target-derived fields were excluded from the predictive feature set.
 
-- client_hash_id as a predictive feature (used only for grouping or validation)
-- content_hash_id as a predictive feature
-- Any client-identifying information
-- Future label-derived columns
-- trend_direction (future work)
-- trend_pct (future work)
+No client names, private queries, credentials, raw exports, or private URLs are included.
 
-## Leakage Considerations
+## Methodology
 
-No future information is used during feature construction.
+### Baseline
 
-Label-derived variables will be excluded once labels are created.
+The Week-4 baseline combines:
 
-No client-identifying information appears anywhere in the repository.
+- GSC impressions
+- CTR
+- GSC average position
 
----
+into a transparent score and assigns reason codes.
 
-# 3. Baseline
+### Future outcome proxy
 
-Not yet completed.
+A direct human-labelled "needs refresh" outcome is not available.
 
-A simple baseline model or rule-based scoring system will be developed before training machine learning models.
+The experiment therefore uses an observed future-performance proxy.
 
----
+A row is labelled as a future decline when the next observed daily impression count for the same page is at least 20% lower than the current count, provided the current count is at least five impressions.
 
-# 4. Model / Analysis
+This is not interpreted as proof that the page needs a refresh.
 
-Not yet completed.
+### Random Forest
 
-Current work has focused on:
+A Random Forest classifier was used to model the future-decline proxy.
 
-- Research Question
-- ML Task Framing
-- Data Contract
+The model uses current-day signals only.
 
-The target label will be defined in later assignments using future observed outcomes.
+### Validation
 
----
+A time-aware 80/20 split was used.
 
-# 5. Evaluation
+Earlier observations were used for training and later observations were used for testing.
 
-Not yet completed.
+The baseline and Random Forest were evaluated on the same test rows.
 
-Future work will include:
+## Results
 
-- Train/Test split
-- Time-aware validation
-- Comparison against baseline
-- Error analysis
+| Method | ROC-AUC | Average Precision | Precision@20 |
+|---|---:|---:|---:|
+| Week-4 Baseline | 0.4660 | 0.2865 | **0.3500** |
+| Random Forest | **0.5107** | **0.3137** | 0.2500 |
 
----
+Test future-decline rate:
 
-# 6. Interpretation
+**30.59%**
 
-Not yet completed.
+The Random Forest improved ROC-AUC and Average Precision, but the transparent baseline performed better on Precision@20.
 
-Future work will analyse:
+Because the intended workflow is a small ranked review queue, the baseline is preferred for the current use case.
 
-- Feature importance
-- Signal relationships
-- Model behaviour
-- Negative results
+## Limitations & Honest Framing
 
----
+The target represents next-day impression decline rather than a human-labelled refresh decision.
 
-# 7. Recommendation
+An impression decline does not prove that content quality caused the change or that a page should be refreshed.
 
-Not yet completed.
+The analysis uses a limited working slice of the warehouse.
 
-The final output will provide ranked content refresh recommendations together with explanation codes describing why each page received its score.
+Search performance may also be influenced by factors not represented in the selected features.
 
----
+The findings are therefore:
 
-# 8. Reproducibility
+- observed
+- measured
+- directional
+- decision-support
 
-Repository:
+They should not be presented as causal evidence.
 
-https://github.com/abdulmoeed1090/Fly-rank-starter-assignment
+## Ranked Recommendations
 
-Current notebooks completed:
+### 1. Keep the transparent baseline
 
-- w01_research_question.ipynb
-- w02_ml_task_framing.ipynb
-- w03_data_contract.ipynb
+The baseline achieved 35% Precision@20 compared with 25% for the Random Forest.
 
-Future notebooks will include:
+### 2. Review low-CTR pages with meaningful visibility
 
-- Feature Leakage Check
-- Signal Audit
-- Baseline Model
-- Machine Learning Model
-- Validation
-- Action Playbook
+Pages with search impressions but relatively few clicks can be prioritized for investigation of titles and metadata.
 
-Random seeds and environment configuration will be documented once modelling begins.
+### 3. Investigate weak search positions
 
----
+Pages with weaker observed positions can be considered for further content investigation.
 
-# Claims Checklist
+### 4. Use the Random Forest as an exploratory benchmark
 
-✔ Observed / measured language
+The model provides somewhat stronger broad ranking metrics but does not outperform the baseline for the small top-20 queue.
 
-✔ Decision-support framing
+### 5. Keep human review in the loop
 
-✔ No causal claims
+The system should prioritize investigation rather than automatically decide which content should be changed.
 
-✔ No client-identifying information
+## Reproducibility
 
-✔ Repository remains reproducible
+The repository contains:
 
-Metrics and model comparisons will be added after baseline and model development.
+- weekly assignment notebooks
+- the capstone notebook
+- the deployed research paper source
+- the paper URL submission file
+
+The main capstone notebook is:
+
+`work/notebooks/w08_capstone.ipynb`
+
+## Acknowledgments & Data Credit
+
+Built on the FlyRank ML Internship dataset.
+
+Data source: FlyRank.
