@@ -1,145 +1,251 @@
-# FlyRank Capstone Report
-
-## Title
-
-# Search Performance Decline: A Decision-Support Study
+# Refresh / Content Opportunity Scoring
 
 ## Abstract
 
-This study asks whether current search-performance signals can help prioritize pages for possible future search-performance decline. A transparent Week-4 scoring rule was compared with a Random Forest classifier using current-day Google Search Console signals. The future outcome was defined as an observed next-day impression decline of at least 20% for pages with at least five current impressions. The Random Forest achieved higher ROC-AUC and Average Precision than the baseline, but the baseline achieved better Precision@20. Therefore, the transparent baseline remains the preferred decision-support method for a small human review queue, while the model results are treated as directional evidence rather than causal evidence.
+This project studies whether current search-performance signals can help prioritize pages for content review. A transparent Week-4 baseline score was compared with a Random Forest model using current-day impressions, clicks, average search position, and CTR. The evaluation used a time-aware split and a measurable next-day impression-decline proxy rather than a human-labelled refresh outcome. The Random Forest achieved higher ROC-AUC and Average Precision than the baseline, but the baseline performed better on the top-20 precision measure used for a small review queue. The result is therefore treated as directional decision-support rather than evidence that the model determines which pages should be refreshed.
 
-## Introduction / Problem Statement
+## 1. Introduction / Problem Statement
 
-Content teams cannot manually investigate every page every day.
+Content teams cannot review every page with equal attention. The practical question is:
 
-This project supports the decision:
+> Can observable search-performance signals be used to prioritize pages for human review?
 
-> Which pages should a content team investigate first?
+This project focuses on building a repeatable ranking approach that identifies pages showing signals that may justify further investigation.
 
-The system is designed as decision support rather than an automatic content-refresh decision.
+The system is designed as decision-support. It does not automatically decide that a page needs a refresh, and it does not claim to explain Google's ranking algorithm.
 
-## Data
+## 2. Data
 
-The project uses the FlyRank ML Internship warehouse dataset.
+The analysis uses the FlyRank ML Internship warehouse, specifically the `fact_content_daily_performance` data.
 
-The selected current-day signals are:
+The working analysis uses a 50,000-row slice of the available data.
 
-- GSC impressions
-- GSC clicks
-- GSC average position
-- CTR derived from clicks and impressions
+The observed reporting window in the working dataset is:
 
-Identifiers, metadata fields, future values, and target-derived fields were excluded from the predictive feature set.
+- Start: 2025-01-27
+- End: 2025-02-26
 
-No client names, private queries, credentials, raw exports, or private URLs are included.
+The main current-day signals used in the modeling analysis are:
 
-## Methodology
+- `gsc_impressions`
+- `gsc_clicks`
+- `gsc_avg_position`
+- `ctr`
 
-### Baseline
+CTR is calculated from current-day clicks and impressions.
 
-The Week-4 baseline combines:
+Identifiers such as client and content hashes are not used as predictive features. Date is used for temporal ordering and validation rather than as a direct predictive feature.
 
-- GSC impressions
+Future impression values are used only to construct the evaluation outcome and are not supplied to the model as input.
+
+## 3. Methodology
+
+### 3.1 Future Outcome Proxy
+
+The warehouse does not provide a direct human-labelled "needs refresh" outcome.
+
+Therefore, the project uses an observed future-performance proxy.
+
+For pages with at least 5 current impressions, a positive outcome is assigned when the next observed calendar day's impressions are at least 20% lower than the current day's impressions.
+
+This produces an observed future-decline indicator.
+
+The proxy should not be interpreted as proof that a page needs a content refresh.
+
+### 3.2 Week-4 Baseline
+
+The transparent baseline combines three current-day signals:
+
+- Search impressions
 - CTR
-- GSC average position
+- Average search position
 
-into a transparent score and assigns reason codes.
+The baseline score is:
 
-### Future outcome proxy
+`0.4 × impressions + 40 × (1 − CTR) + 0.2 × average_position`
 
-A direct human-labelled "needs refresh" outcome is not available.
+Higher scores produce a higher-priority review position.
 
-The experiment therefore uses an observed future-performance proxy.
+The baseline also assigns reason codes such as:
 
-A row is labelled as a future decline when the next observed daily impression count for the same page is at least 20% lower than the current count, provided the current count is at least five impressions.
+- `LOW_CTR`
+- `LOW_POSITION`
+- `MONITOR`
 
-This is not interpreted as proof that the page needs a refresh.
+This provides an interpretable rule-based benchmark.
 
-### Random Forest
+### 3.3 Random Forest
 
-A Random Forest classifier was used to model the future-decline proxy.
+A Random Forest classifier was trained using:
 
-The model uses current-day signals only.
+- `gsc_impressions`
+- `gsc_clicks`
+- `gsc_avg_position`
+- `ctr`
 
-### Validation
+The model was intentionally kept relatively constrained rather than maximizing complexity.
 
-A time-aware 80/20 split was used.
+The model outputs a probability associated with the future-decline proxy. Pages can then be ranked according to this probability.
+
+### 3.4 Validation Design
+
+Because the outcome represents a future event, a time-aware split was used.
 
 Earlier observations were used for training and later observations were used for testing.
 
-The baseline and Random Forest were evaluated on the same test rows.
+The usable dataset contained 27,422 rows with measurable future outcomes.
 
-## Results
+The split was approximately:
+
+- Training: 21,937 rows
+- Testing: 5,485 rows
+
+The test period was kept separate from the earlier training period.
+
+The same test rows were used for the baseline and Random Forest comparison.
+
+### 3.5 Leakage Checks
+
+The model does not use:
+
+- Future impressions as a feature
+- The future-decline outcome as a feature
+- Baseline score as a feature
+- Baseline reason code as a feature
+- Baseline action as a feature
+- Client identifiers as predictive features
+- Content identifiers as predictive features
+- Report date as a predictive feature
+
+This keeps the model inputs restricted to information available at the prediction point.
+
+## 4. Results
+
+The test-set future-decline base rate was approximately **30.59%**.
 
 | Method | ROC-AUC | Average Precision | Precision@20 |
 |---|---:|---:|---:|
-| Week-4 Baseline | 0.4660 | 0.2865 | **0.3500** |
-| Random Forest | **0.5107** | **0.3137** | 0.2500 |
+| Week-4 Baseline | 0.4660 | 0.2865 | 0.3500 |
+| Random Forest | 0.5107 | 0.3137 | 0.2500 |
 
-Test future-decline rate:
+The Random Forest produced higher ROC-AUC and Average Precision than the transparent baseline.
 
-**30.59%**
+However, the Week-4 baseline produced higher Precision@20.
 
-The Random Forest improved ROC-AUC and Average Precision, but the transparent baseline performed better on Precision@20.
+Because the practical use case is a small ranked review queue, this distinction matters. The more complex model did not outperform the simple baseline at the selected top-20 review point.
 
-Because the intended workflow is a small ranked review queue, the baseline is preferred for the current use case.
+Therefore, complexity alone is not treated as an improvement.
 
-## Limitations & Honest Framing
+## 5. Interpretation
 
-The target represents next-day impression decline rather than a human-labelled refresh decision.
+The Random Forest learned patterns from the current search-performance signals, but its results should be interpreted as measured associations within this dataset.
 
-An impression decline does not prove that content quality caused the change or that a page should be refreshed.
+Feature importance describes which inputs the model relied on when making its predictions. It does not establish that any feature causes future decline.
 
-The analysis uses a limited working slice of the warehouse.
+The difference between the baseline and model rankings also shows that the learned model does not simply reproduce the Week-4 rule.
 
-Search performance may also be influenced by factors not represented in the selected features.
+The baseline remains useful because it is transparent, easy to inspect, and performed better on the selected top-20 precision measure.
 
-The findings are therefore:
+## 6. Ranked Recommendations
+
+The recommended workflow is:
+
+### 1. Review low-CTR pages
+
+Pages receiving meaningful search impressions but capturing relatively few clicks can be placed into a review queue.
+
+Possible human review:
+
+- title wording
+- search-result relevance
+- meta description
+- alignment between search intent and page content
+
+### 2. Review low-position pages
+
+Pages with weaker average search positions can be investigated for content relevance and completeness.
+
+Possible human review:
+
+- content depth
+- topical coverage
+- search intent alignment
+- internal linking
+- content freshness
+
+### 3. Monitor pages without strong warning signals
+
+Pages without strong evidence from the selected signals should remain in monitoring rather than automatically receiving an intervention.
+
+### 4. Prefer the transparent baseline for a small review queue
+
+In this experiment, the baseline achieved higher Precision@20 than the Random Forest.
+
+Therefore, for a small human review queue, the transparent baseline is the safer starting point.
+
+The Random Forest remains useful as an experimental comparison and may become more useful with better labels, additional validated features, and a larger evaluation period.
+
+## 7. Limitations & Honest Framing
+
+This study has several limitations.
+
+First, the target is a future impression-decline proxy rather than a human-labelled content-refresh decision.
+
+Second, the working analysis uses a limited slice of the warehouse.
+
+Third, next-day search impressions can change for many reasons that are not represented by the selected features.
+
+Fourth, the model results should not be interpreted as evidence about Google's ranking algorithm.
+
+Finally, the analysis does not demonstrate that refreshing a page causes improved search performance.
+
+The findings are therefore best described as:
 
 - observed
 - measured
 - directional
 - decision-support
 
-They should not be presented as causal evidence.
+rather than causal or definitive.
 
-## Ranked Recommendations
+## 8. Reproducibility
 
-### 1. Keep the transparent baseline
+The project notebooks are maintained in the repository under:
 
-The baseline achieved 35% Precision@20 compared with 25% for the Random Forest.
+`work/notebooks/`
 
-### 2. Review low-CTR pages with meaningful visibility
+The main modeling notebook is:
 
-Pages with search impressions but relatively few clicks can be prioritized for investigation of titles and metadata.
+`work/notebooks/w05_model.ipynb`
 
-### 3. Investigate weak search positions
+The Week-4 baseline notebook is:
 
-Pages with weaker observed positions can be considered for further content investigation.
+`work/notebooks/w04_baseline_score.ipynb`
 
-### 4. Use the Random Forest as an exploratory benchmark
+The feature and leakage work is documented in:
 
-The model provides somewhat stronger broad ranking metrics but does not outperform the baseline for the small top-20 queue.
+`work/notebooks/w03_feature_leakage_check.ipynb`
 
-### 5. Keep human review in the loop
+The signal audit is documented in:
 
-The system should prioritize investigation rather than automatically decide which content should be changed.
+`work/notebooks/w06_signal_audit.ipynb`
 
-## Reproducibility
+The notebooks contain the analysis steps used to construct the features, baseline, future-outcome proxy, model, and evaluation.
 
-The repository contains:
+## 9. Conclusion
 
-- weekly assignment notebooks
-- the capstone notebook
-- the deployed research paper source
-- the paper URL submission file
+The experiment shows that a Random Forest can provide measurable ranking signals for the defined future-decline proxy.
 
-The main capstone notebook is:
+However, the Random Forest did not outperform the transparent Week-4 baseline on Precision@20, the metric most directly aligned with a small human review queue.
 
-`work/notebooks/w08_capstone.ipynb`
+The practical conclusion is therefore not "the model wins."
 
-## Acknowledgments & Data Credit
+Instead, the observed evidence supports keeping the transparent baseline as a strong decision-support starting point while treating the learned model as an experimental extension.
+
+Future work should focus on better human-labelled outcomes, longer evaluation windows, additional validated signals, and stricter validation before relying on a learned model operationally.
+
+## 10. Acknowledgments & Data Credit
 
 Built on the FlyRank ML Internship dataset.
 
-Data source: FlyRank.
+Data credit: [FlyRank](https://flyrank.ai)
