@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FlyRank Capstone: Content Refresh Opportunity Scoring</title>
+    <title>Refresh / Content Opportunity Scoring — Research Paper</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -15,7 +15,7 @@
             background: #fafafa;
         }
 
-        h1, h2, h3, h4 {
+        h1, h2, h3 {
             line-height: 1.25;
             color: #111;
         }
@@ -35,10 +35,6 @@
             margin-top: 45px;
             border-bottom: 2px solid #e0e0e0;
             padding-bottom: 8px;
-        }
-
-        h3 {
-            margin-top: 25px;
         }
 
         table {
@@ -83,156 +79,125 @@
             color: #007600;
         }
 
-        .badge {
-            display: inline-block;
-            background: #0056b3;
-            color: white;
-            padding: 2px 8px;
-            border-radius: 3px;
-            font-size: 12px;
-            font-weight: 600;
-            margin-right: 6px;
-            vertical-align: middle;
-        }
-
-        .share-box {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            padding: 18px;
-            border-radius: 6px;
-            margin-top: 15px;
-        }
-
         blockquote {
             border-left: 4px solid #cbd5e1;
-            margin: 0;
+            margin: 20px 0;
             padding-left: 16px;
             color: #475569;
             font-style: italic;
+        }
+
+        ul, ol {
+            padding-left: 20px;
+        }
+
+        li {
+            margin-bottom: 8px;
         }
     </style>
 </head>
 
 <body>
 
-<h1>Content Refresh Opportunity Scoring</h1>
-<div class="subtitle">FlyRank Machine Learning Internship Capstone Paper (ML-01 to ML-10)</div>
+<h1>Refresh / Content Opportunity Scoring</h1>
+<div class="subtitle">FlyRank Machine Learning Internship Capstone Paper (ML-01 to ML-11)</div>
 
 <!-- ABSTRACT -->
 <div class="summary">
     <strong>Abstract:</strong> 
-    Digital publishers struggle to allocate limited editorial resources toward updating vast libraries of published content. This paper presents a machine learning case study addressing FlyRank's content opportunity scoring challenge: prioritizing web pages facing imminent search traffic decay. Using a 50,000-row working slice from the FlyRank warehouse (spanning 2025-01-27 to 2025-02-27), we evaluate a rule-based baseline against an advanced Tuned Multi-Lag Gradient Boosted Decision Trees (GBDT) model. By incorporating backward-looking temporal velocity features—including 1-day/2-day impression deltas, position momentum, and 3-day rolling averages—the GBDT model significantly outperforms the baseline under a strict chronological 80/20 split and temporal leakage audit. The model increased ROC-AUC from 0.4622 to 0.6893, Average Precision from 0.2855 to 0.4756 (+66.5% relative uplift over the test base rate), and Precision@20 from 0.2500 to 0.3500. The resulting system is deployed as a decision-support prioritization queue accompanied by transparent reason codes and human editorial audit guardrails.
+    Digital publishers struggle to allocate limited editorial resources toward updating vast libraries of published content. This paper presents a machine learning case study addressing FlyRank's content opportunity scoring challenge: prioritizing web pages facing imminent search traffic decay. Using a 50,000-row working slice from the FlyRank warehouse (spanning 2025-01-27 to 2025-02-27), we evaluate a rule-based baseline against an advanced Tuned Multi-Lag Gradient Boosted Decision Trees (GBDT) model. By incorporating backward-looking temporal velocity features—including 1-day/2-day impression deltas, position momentum, and 3-day rolling averages—the GBDT model significantly outperforms the baseline under a strict chronological 80/20 split and temporal leakage audit. The model increased ROC-AUC from 0.4622 to 0.6893, Average Precision from 0.2855 to 0.4756 (+66.5% relative uplift over the test base rate), and Precision@20 from 0.2500 to 0.3500, yielding an effective decision-support engine accompanied by transparent reason codes and editorial guardrails.
 </div>
 
 <!-- SECTION 1: INTRODUCTION -->
-<h2><span class="badge">ML-01 - ML-03</span> 1. Introduction & Case Study Framing</h2>
+<h2>1. Introduction / Problem Statement</h2>
 
 <p>
-Modern Search Engine Optimization (SEO) and content engineering teams manage thousands of active URLs across multiple client domains. When search engine ranking algorithms update or user intent shifts, older pages naturally undergo traffic decay. However, manually auditing every page on a daily basis is cost-prohibitive. Content operations require an automated, data-driven mechanism to surface pages where editorial intervention will yield the highest return on investment.
+Content teams cannot review every page with equal attention. When search engine ranking algorithms shift or search intent evolves, older pages naturally undergo traffic decay. Manually auditing every page on a daily basis is cost-prohibitive. Content operations require an automated, data-driven mechanism to surface pages where editorial intervention will yield the highest return on investment.
 </p>
 
 <p>
-This case study evaluates an ML-driven solution for the <strong>FlyRank Content Opportunity Scoring</strong> lane. Rather than attempting to reverse-engineer search engine ranking algorithms or automate content generation, our goal is strictly <em>decision support</em>: assigning each page an opportunity score that ranks decaying pages for human review.
+This project focuses on building a repeatable ranking approach that identifies pages showing signals that justify further investigation.
 </p>
 
 <blockquote>
-    <strong>Research Question:</strong> Which content pages should be prioritized for editorial review to mitigate future performance decline using observable search engine metrics?
+    <strong>Research Question:</strong> Can observable search-performance signals be used to prioritize pages for human review to mitigate future performance decline?
 </blockquote>
 
+<p>
+The system is designed purely as <strong>decision-support</strong>. It does not automatically decide that a page needs a refresh, and it does not claim to explain Google's ranking algorithm. Rather than predicting an unweighted binary outcome, pages are assigned a continuous probability score to populate a high-density top-$K$ review queue.
+</p>
+
+<!-- SECTION 2: DATA -->
+<h2>2. Data</h2>
+
+<p>
+The analysis uses the FlyRank ML Internship warehouse, specifically the <code>fact_content_daily_performance</code> dataset (drawn from a 79M-row production release).
+</p>
+
 <ul>
-    <li><strong>Task Formulation:</strong> Opportunity Scoring & Prioritization Ranking. Rather than predicting an unweighted binary outcome, pages are assigned a continuous probability score to populate a high-density top-$K$ review queue.</li>
-    <li><strong>Unit of Analysis:</strong> One row represents the daily observed search performance of one content page for one client (Grain: <code>report_date + client_hash_id + content_hash_id</code>).</li>
-    <li><strong>Cost of Misclassification:</strong> False positives waste scarce editorial rewrite budget; false negatives allow decaying high-value pages to lose organic visibility unchecked.</li>
+    <li><strong>Working Dataset:</strong> 50,000 rows</li>
+    <li><strong>Start Date:</strong> 2025-01-27</li>
+    <li><strong>End Date:</strong> 2025-02-27</li>
 </ul>
 
-<!-- SECTION 2: DATA CONTRACT & AUDIT -->
-<h2><span class="badge">ML-04 - ML-06</span> 2. Data Contract & Signal Audit</h2>
+<p>The primary current-day signals and backward-looking temporal lag features are:</p>
+
+<ul>
+    <li><strong>Current-Day Signals:</strong> <code>gsc_impressions</code>, <code>gsc_clicks</code>, <code>gsc_avg_position</code>, <code>ctr</code></li>
+    <li><strong>Backward-Looking Lags:</strong> <code>impression_delta</code>, <code>impression_ratio</code>, <code>position_delta</code>, <code>impression_delta_2d</code>, <code>impression_vs_3d_avg</code></li>
+</ul>
 
 <p>
-Data was extracted from the FlyRank warehouse (<code>fact_content_daily_performance</code>). Features are strictly derived from historical Search Console signals available prior to the prediction timestamp.
+Identifiers such as client and content hashes are not used as predictive features. Report dates are used exclusively for temporal ordering and splitting. Future impression values are restricted to target construction and strictly excluded from model inputs.
 </p>
 
-<h3>Empirical Signal Audit Findings (ML-06)</h3>
-<p>Distribution checks confirmed that raw static search signals carry valid directional information for review prioritization:</p>
+<!-- SECTION 3: METHODOLOGY -->
+<h2>3. Methodology</h2>
 
-<table>
-    <thead>
-        <tr>
-            <th>Signal Tested</th>
-            <th>Hypothesis / Question</th>
-            <th>Observed Finding</th>
-            <th>Verdict</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr>
-            <td><strong>1. Search Volume (Impressions)</strong></td>
-            <td>Do higher-impression pages show greater click activity?</td>
-            <td>High impression buckets (51+) average 0.619 clicks vs 0.022 for low buckets (1-5).</td>
-            <td><span class="verdict">CONFIRMED</span></td>
-        </tr>
-        <tr>
-            <td><strong>2. Search Position</strong></td>
-            <td>Does search rank separate click performance?</td>
-            <td>Ranks 1-3 average 0.497 clicks (0.0388 CTR) vs 0.0059 clicks for ranks 51+.</td>
-            <td><span class="verdict">CONFIRMED</span></td>
-        </tr>
-        <tr>
-            <td><strong>3. Flag-Linked CTR vs Position</strong></td>
-            <td>Is CTR variable within identical position tiers?</td>
-            <td>Within position tier 1-3, median CTR shows significant spread (1.04% median, 1.66% mean), confirming CTR anomalies identify sub-optimal snippets.</td>
-            <td><span class="verdict">CONFIRMED</span></td>
-        </tr>
-    </tbody>
-</table>
-
-<!-- SECTION 3: BASELINE ACTION SCORE -->
-<h2><span class="badge">ML-07</span> 3. Baseline Action Score (Week-4 Reference)</h2>
-
+<h3>3.1 Future Outcome Proxy</h3>
 <p>
-To establish an honest evaluation threshold, a transparent rule-based baseline score was implemented using current Search Console metrics:
+Because the dataset does not contain a direct human-labelled "needs refresh" label, the project defines an observed future-performance proxy.
+</p>
+<p>
+For pages with at least 5 current impressions and a valid next-calendar-day observation, a positive target (<code>1</code>) is assigned when the next observed day's impressions fall by at least 20% compared to current-day impressions. This target serves as a proxy for measurable short-term decay, not absolute proof that a content rewrite is required.
 </p>
 
+<h3>3.2 Week-4 Baseline</h3>
+<p>
+The transparent heuristic baseline combines three current-day search signals:
+</p>
 <p>
 <code>Baseline Score = 0.4 × gsc_impressions + 40 × (1 − CTR) + 0.2 × gsc_avg_position</code>
 </p>
-
 <p>
-Pages were mapped to baseline reason codes: <code>LOW_CTR</code> (CTR &lt; 2% &amp; impressions &gt; 20), <code>LOW_POSITION</code> (avg position &gt; 30), or <code>MONITOR</code>.
+Higher scores indicate higher priority for review. The baseline also assigns reason codes such as <code>LOW_CTR</code>, <code>LOW_POSITION</code>, and <code>MONITOR</code>.
 </p>
 
-<!-- SECTION 4: ADVANCED CAPSTONE MODELING -->
-<h2><span class="badge">ML-08</span> 4. Advanced Capstone Modeling (Multi-Lag GBDT)</h2>
-
+<h3>3.3 Tuned Multi-Lag GBDT Model</h3>
 <p>
-Static snapshot features used in naive models fail to capture traffic momentum. We engineered backward-looking temporal velocity features derived strictly from historical dates:
+A <code>HistGradientBoostingClassifier</code> (regularized GBDT) was trained using current-day metrics alongside multi-period trend velocity signals (1-day/2-day impression deltas, position shifts, and 3-day rolling averages) to capture momentum changes.
+</p>
+
+<h3>3.4 Validation Design & Leakage Audit</h3>
+<p>
+Because the outcome represents a future event, an honest chronological 80/20 time-aware split was used:
 </p>
 <ul>
-    <li><code>impression_delta</code>: 1-day impression change ($t - (t-1)$)</li>
-    <li><code>position_delta</code>: 1-day search position movement ($t - (t-1)$)</li>
-    <li><code>impression_delta_2d</code>: 2-day impression velocity ($t - (t-2)$)</li>
-    <li><code>impression_vs_3d_avg</code>: Current impressions relative to 3-day backward rolling average</li>
+    <li><strong>Total Usable Rows:</strong> 27,422 (rows with valid next-day observations)</li>
+    <li><strong>Training Rows (Earlier Dates):</strong> 21,937</li>
+    <li><strong>Testing Rows (Later Dates):</strong> 5,485</li>
+    <li><strong>Test Set Base Rate:</strong> 31.17%</li>
 </ul>
-
 <p>
-A <code>HistGradientBoostingClassifier</code> (scikit-learn regularized GBDT) was trained on 21,937 earlier observations and evaluated on 5,485 held-out chronological test rows.
+<strong>Leakage Checks:</strong> The model strictly excludes future dates, future impressions, target labels, baseline heuristic outputs (scores, reason codes, actions), and entity/client identifiers from its inputs.
 </p>
 
-<!-- SECTION 5: VALIDATION & LEAKAGE AUDIT -->
-<h2><span class="badge">ML-09</span> 5. Validation & Research Claim Audit</h2>
+<!-- SECTION 4: RESULTS -->
+<h2>4. Results</h2>
 
 <p>
-A rigorous temporal audit was conducted to ensure no future lookahead or target contamination occurred.
+The performance of the models was evaluated on the held-out test set using ROC-AUC, Average Precision (AP), and Precision@20 (queue density for top 20 items):
 </p>
-
-<h3>Leakage Audit Verification</h3>
-<ul>
-    <li><strong>Excluded Target & Future Fields:</strong> <code>future_date</code>, <code>future_impressions</code>, <code>future_decline</code> (PASS)</li>
-    <li><strong>Excluded Heuristic Outputs:</strong> <code>baseline_score</code>, <code>reason_code</code>, <code>action</code> (PASS)</li>
-    <li><strong>Temporal Split Integrity:</strong> 80/20 date split ensures zero date overlap between training and testing sets (PASS).</li>
-</ul>
-
-<h3>Comparative Model Results</h3>
 
 <table>
     <thead>
@@ -270,82 +235,71 @@ A rigorous temporal audit was conducted to ensure no future lookahead or target 
 </table>
 
 <p>
-The Tuned Multi-Lag GBDT model achieved a <strong>+66.5% relative uplift in Average Precision</strong> over the baseline and raised Precision@20 from 25% to 35%, surfacing a significantly higher density of true decline candidates for human editors.
+The Tuned Multi-Lag GBDT model achieved a <strong>+66.5% relative uplift in Average Precision</strong> over the rule baseline and raised Precision@20 from 25% to 35%, surfacing a significantly higher density of true decline candidates for human editors.
 </p>
 
-<!-- SECTION 6: ACTION PLAYBOOK -->
-<h2><span class="badge">ML-10</span> 6. Content Action Playbook & Operational Rules</h2>
-
-<p>Model probability outputs map into human-trusted reason codes and review recommendations:</p>
+<!-- SECTION 5: LIMITATIONS & HONEST FRAMING -->
+<h2>5. Limitations & Honest Framing</h2>
 
 <ul>
-    <li><strong><code>POS_SLIP</code>:</strong> Position degraded by &gt; 2.0 ranks. <em>Action: Refresh Content &amp; Depth.</em></li>
-    <li><strong><code>IMP_DROP_VELOCITY</code>:</strong> Impressions fell &gt; 25% below 3-day average. <em>Action: Audit Search Intent Shifts.</em></li>
-    <li><strong><code>LOW_CTR_HIGH_IMP</code>:</strong> Impressions &ge; 20 with CTR &lt; 1%. <em>Action: Review Title &amp; Snippet Description.</em></li>
-    <li><strong><code>DECAY_RISK</code>:</strong> General multi-period momentum loss. <em>Action: General Editorial Review.</em></li>
+    <li>The target variable is an observed future impression-decline proxy, not a direct human editorial label.</li>
+    <li>The working analysis uses a 50,000-row slice of the full 79M-row warehouse.</li>
+    <li>Search performance fluctuations are influenced by external factors (e.g., SERP layout changes, Google core updates, competitor shifts) not captured in GSC metrics alone.</li>
+    <li>The model identifies statistical decay risk; it does not establish that refreshing a page will cause traffic recovery.</li>
 </ul>
 
-<h3>Human Review Guardrails & No-Go Rules</h3>
+<p>
+The findings are therefore best described as <strong>observed, measured, directional, and decision-support</strong> rather than causal or definitive.
+</p>
+
+<!-- SECTION 6: RANKED RECOMMENDATIONS -->
+<h2>6. Ranked Recommendations & Action Playbook</h2>
+
+<ol>
+    <li>
+        <strong>Prioritize pages with Position Slippage (<code>POS_SLIP</code>):</strong>
+        Investigate queries where average rank degraded by &gt; 2 positions relative to historical baselines.
+    </li>
+    <li>
+        <strong>Audit High-Velocity Impression Drops (<code>IMP_DROP_VELOCITY</code>):</strong>
+        Focus on pages whose current impressions fall &gt; 25% below their 3-day rolling average.
+    </li>
+    <li>
+        <strong>Address High-Impression, Low-CTR Anomalies (<code>LOW_CTR_HIGH_IMP</code>):</strong>
+        Review title tags, snippet descriptions, and intent alignment for high-exposure pages with CTR &lt; 1%.
+    </li>
+    <li>
+        <strong>Enforce Human Review Guardrails & No-Go Rules:</strong>
+        Editors must manually verify SERP intent, technical health, and recent refresh timestamps (&lt; 30 days) prior to making updates. Never automate content rewrites or URL redirects based solely on model probabilities.
+    </li>
+</ol>
+
+<!-- SECTION 7: REPRODUCIBILITY -->
+<h2>7. Reproducibility</h2>
+
+<p>
+The project notebooks and pipeline artifacts are maintained in the repository under:
+</p>
 <ul>
-    <li><strong>Mandatory Human Audit:</strong> Editors must verify SERP layout changes (e.g., AI Overviews), technical indexing health, and recent refresh dates (&lt; 30 days) prior to modifying content.</li>
-    <li><strong>Strict No-Go Boundary:</strong> NEVER auto-rewrite live content using AI, auto-redirect URLs, or delete decaying pages based solely on model probabilities.</li>
-</ul>
-
-<h3>Monitoring & Retrain Triggers</h3>
-<p>Retraining is automatically triggered if Precision@20 drops below 0.30, target base rate drifts by &gt; 10%, or routinely every 30 days.</p>
-
-<!-- SECTION 7: DEMO OUTLINE & SHAREABLE CUTS -->
-<h2>7. Showcase Presentation & Shareable Cuts</h2>
-
-<h3>A. 5-Minute Showcase Demo Outline</h3>
-<ul>
-    <li><strong>0:00 - 1:00 | The Problem:</strong> FlyRank warehouse framing & editorial bottlenecks across thousands of client URLs.</li>
-    <li><strong>1:00 - 2:00 | The Method:</strong> 50k dataset slice, time-aware 80/20 split, multi-lag velocity feature engineering, and zero-lookahead audit.</li>
-    <li><strong>2:00 - 3:00 | The Key Metric Jump:</strong> Benchmark comparison showing GBDT boosting ROC-AUC to 0.6893 and Average Precision to 0.4756 (+66.5% uplift).</li>
-    <li><strong>3:00 - 4:00 | Honest Limitations:</strong> Target proxy framing (observed 20% next-day drop) vs causality; managing statistical decay risk vs algorithm updates.</li>
-    <li><strong>4:00 - 5:00 | Action Playbook & Guardrails:</strong> Transparent reason codes (`POS_SLIP`, `IMP_DROP_VELOCITY`) and strict human-in-the-loop no-go boundaries.</li>
-</ul>
-
-<h3>B. Shareable Project Summaries</h3>
-
-<div class="share-box">
-    <h4>Social Media Cut (LinkedIn / Twitter)</h4>
-    <blockquote>
-        How do you predict content decay across thousands of URLs without leaking future data?<br><br>
-        In my capstone project with FlyRank, I built a machine learning decision-support queue to prioritize decaying search content. Static snapshot features weren't enough (yielding near-random 0.51 ROC-AUC). By engineering backward-looking trend velocity signals—like 3-day rolling impression averages and position momentum—and training a regularized GBDT model under a chronological 80/20 split, performance jumped to 0.6893 ROC-AUC and 0.4756 Average Precision (+66.5% relative uplift).<br><br>
-        The biggest takeaway? ML for content ops should drive human prioritization, not automated execution.
-    </blockquote>
-</div>
-
-<div class="share-box">
-    <h4>Employer-Facing Summary (3 Sentences)</h4>
-    <blockquote>
-        Built a Machine Learning content opportunity scoring engine on a 50,000-row warehouse dataset from FlyRank to prioritize decaying web pages for editorial review.<br>
-        Engineered backward-looking temporal velocity features and trained a regularized Gradient Boosted Decision Tree (GBDT) under a chronological split, increasing Average Precision from 0.2855 (rule baseline) to 0.4756 and Precision@20 to 0.3500.<br>
-        Translated predictions into an operational Action Playbook featuring human-in-the-loop review guardrails, automated retrain monitoring triggers, and transparent reason codes.
-    </blockquote>
-</div>
-
-<!-- SECTION 8: REPRODUCIBILITY -->
-<h2>8. Reproducibility & Output Receipts</h2>
-
-<p>All pipeline scripts and validation artifacts are maintained under the project repository:</p>
-<ul>
-    <li><code>work/notebooks/ML-01_to_ML-10.ipynb</code></li>
+    <li><code>work/notebooks/capstone.ipynb</code></li>
+    <li><code>work/notebooks/w03_feature_leakage_check.ipynb</code></li>
+    <li><code>work/notebooks/w04_baseline_score.ipynb</code></li>
+    <li><code>work/notebooks/w05_model.ipynb</code></li>
+    <li><code>work/notebooks/w06_signal_audit.ipynb</code></li>
     <li><code>work/outputs/ml08_metrics.json</code></li>
     <li><code>work/outputs/ml09_validation_receipt.json</code></li>
     <li><code>work/outputs/ml10_action_queue_top50.csv</code></li>
     <li><code>work/outputs/ml10_playbook_receipt.json</code></li>
 </ul>
 
-<h2>9. Conclusion & Data Credit</h2>
+<!-- SECTION 8: ACKNOWLEDGMENTS & DATA CREDIT -->
+<h2>8. Acknowledgments & Data Credit</h2>
 
 <p>
-Integrating multi-period temporal velocity signals into regularized Gradient Boosted Decision Trees transforms static performance snapshots into a reliable decision-support engine. The resulting system effectively surfaces decaying content for human editors while maintaining strict operational guardrails.
+Built on the FlyRank ML Internship dataset.
 </p>
-
 <p>
-Built on the FlyRank ML Internship warehouse dataset. <a href="https://flyrank.ai">FlyRank</a>
+Data credit: <a href="https://flyrank.ai" target="_blank" rel="noopener noreferrer">FlyRank</a>
 </p>
 
 </body>
